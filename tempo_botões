@@ -1,0 +1,95 @@
+#include <Arduino.h>
+
+unsigned long tempoInicio = 0;
+unsigned long tempoAtual = 0;
+unsigned long intervaloTabela = 10000; // Intervalo para exibir a tabela (10 segundos)
+
+
+// Configurações estáticas
+const int NUM_BOTOES = 4; // Número de botões
+const int MAX_EVENTOS = 50; // Número máximo de eventos que podem ser armazenados por botão
+
+unsigned long lista_botoes[NUM_BOTOES][MAX_EVENTOS]; // Matriz para armazenar os tempos
+int contadorEventos[NUM_BOTOES] = {0}; // Contador de eventos para cada botão
+unsigned long botoes[NUM_BOTOES] = {8, 11, 12, 13}; // Pinos dos botões
+bool estadosAnteriores[NUM_BOTOES]; // Estados anteriores dos botões
+
+void setup() {
+  Serial.begin(9600);
+
+  // Inicializa os pinos
+  pinMode(10, OUTPUT);
+  pinMode(9, OUTPUT);
+
+  // Configura os pinos como entradas com resistores pull-up
+  for (int i = 0; i < NUM_BOTOES; i++) {
+    pinMode(botoes[i], INPUT_PULLUP);
+    estadosAnteriores[i] = digitalRead(botoes[i]); // Inicializa com o estado atual do botão
+    for (int j = 0; j < MAX_EVENTOS; j++) {
+      lista_botoes[i][j] = 0; // Inicializa a matriz com zeros
+    }
+  }
+
+  Serial.println("Sistema inicializado. Aguardando interações...");
+}
+
+void ler_botao(int pino, int indice) {
+  int estadoBotao = digitalRead(pino); // Lê o estado atual do botão
+
+  // Detecta quando o botão é pressionado
+  if (estadoBotao == HIGH  && estadosAnteriores[indice] == LOW) {
+    tempoAtual = millis(); // Atualiza o tempo atual
+    Serial.println("Botão " + String(indice) + " pressionado no tempo: " + String(tempoAtual) + " ms");
+
+    // Armazena o horário na matriz se houver espaço disponível
+    if (contadorEventos[indice] < MAX_EVENTOS) {
+      lista_botoes[indice][contadorEventos[indice]] = tempoAtual;
+      contadorEventos[indice]++;
+    } else {
+      Serial.println("Aviso: Limite de eventos atingido para o botão " + String(indice));
+    }
+  }
+
+  // Atualiza o estado anterior do botão
+  estadosAnteriores[indice] = estadoBotao;
+}
+
+void imprimir_tabela() {
+  Serial.println("\nTabela de Eventos de Botões:");
+  Serial.println("Botão\tInstantes (ms)");
+  bool tabelaVazia = true; // Verifica se algum botão foi pressionado
+
+  for (int i = 0; i < NUM_BOTOES; i++) {
+    Serial.print(" " + String(i) + "\t");
+    if (contadorEventos[i] > 0) {
+      tabelaVazia = false;
+    }
+    for (int j = 0; j < contadorEventos[i]; j++) {
+      Serial.print(String(lista_botoes[i][j]) + " ");
+    }
+    Serial.println();
+  }
+
+  if (tabelaVazia) {
+    Serial.println("Nenhum botão foi pressionado até agora.");
+  }
+  Serial.println("\n--- Fim da Tabela ---\n");
+}
+
+void loop() {
+  // Atualiza o tempo atual
+  tempoAtual = millis();
+
+  // Verifica se é hora de imprimir a tabela
+  if (tempoAtual - tempoInicio >= intervaloTabela) {
+    imprimir_tabela();
+    tempoInicio = tempoAtual; // Reinicia o contador
+  }
+
+ler_botao(11, 1);
+  ler_botao(12, 2);
+  ler_botao(8, 0);
+   ler_botao(13, 3);
+
+ // Pequeno atraso para evitar leituras redundantes
+}
