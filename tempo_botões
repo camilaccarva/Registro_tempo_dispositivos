@@ -26,7 +26,7 @@ void setup() {
   botoes[3] = 13;
 
   // Aloca memória para as linhas (vetor de ponteiros)
-  matriz_botoes = (int**)malloc(numero_botoes * sizeof(int*));
+  matriz_botoes = (int**)malloc(numero_botoes * sizeof(int));
   if (matriz_botoes == NULL) {
     Serial.println("Erro ao alocar memória para as linhas!");
     return;
@@ -40,6 +40,18 @@ void setup() {
       return;
     }
   }
+
+  for(int i = 0; i < numero_botoes;i++){
+    for(int j =0; j< colunas[i]; j++){
+      matriz_botoes[i][j] = 0;
+
+    }
+
+
+
+  }
+
+
 
   // Configura os pinos como entradas com resistores pull-up
   for (int i = 0; i < numero_botoes; i++) {
@@ -73,8 +85,7 @@ void ler_botao(int pino, int indice) {
         Serial.print("Tempo: ");
         Serial.println(tempoAtual);
 
-        // Aumenta o tamanho da coluna do botão para adicionar um horário
-        colunas[indice]++;
+      
         matriz_botoes[indice] = (int*)realloc(matriz_botoes[indice], colunas[indice] * sizeof(int));
 
         if (matriz_botoes[indice] == NULL) {
@@ -84,6 +95,9 @@ void ler_botao(int pino, int indice) {
 
         // Adiciona o horário
         matriz_botoes[indice][colunas[indice]-1 ] = tempoAtual;
+
+        // Aumenta o tamanho da coluna do botão para adicionar um horário
+        colunas[indice]++;
 
         // Transmite uma amostra de dados codificados Manchester (exemplo: 1010)
         int message[] = {1, 0};
@@ -95,6 +109,7 @@ void ler_botao(int pino, int indice) {
       // Atualiza o valor anterior e o tempo da última leitura
       lastval[indice] = val;
       tempoUltimaLeitura[indice] = tempoAtual;
+      
     }
   }
 }
@@ -106,7 +121,7 @@ void imprimirMatriz() {
     Serial.print("Botão ");
     Serial.print(i);
     Serial.print(": ");
-    for (int j = 0; j < colunas[i]; j++) {
+    for (int j = 0; j < colunas[i] -1; j++) {
       Serial.print(matriz_botoes[i][j]);
       Serial.print(" ");
     }
@@ -116,8 +131,8 @@ void imprimirMatriz() {
 
 void loop() {
   // Lê os botões
-  ler_botao(11, 1);
-  ler_botao(12, 2);
+  ler_botao(11, 2);
+  ler_botao(12, 1);
   ler_botao(8, 0);
   ler_botao(13, 3);
 
@@ -127,8 +142,6 @@ void loop() {
     tempoUltimaImpressao = millis();
 
     // Imprime a matriz
-   // imprimirMatriz();
-  }
-
- 
+   imprimirMatriz();
+}
 }
