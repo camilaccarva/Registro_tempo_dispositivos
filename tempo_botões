@@ -1,95 +1,80 @@
-#include <Arduino.h>
+#include <Vector.h>
 
+unsigned long tempoFinal = 0;
 unsigned long tempoInicio = 0;
 unsigned long tempoAtual = 0;
-unsigned long intervaloTabela = 10000; // Intervalo para exibir a tabela (10 segundos)
+bool estadoAnterior = LOW;
+int ledLigado = 0;
+bool estadoAnteriorLiga = LOW; 
 
-
-// Configurações estáticas
-const int NUM_BOTOES = 4; // Número de botões
-const int MAX_EVENTOS = 50; // Número máximo de eventos que podem ser armazenados por botão
-
-unsigned long lista_botoes[NUM_BOTOES][MAX_EVENTOS]; // Matriz para armazenar os tempos
-int contadorEventos[NUM_BOTOES] = {0}; // Contador de eventos para cada botão
-unsigned long botoes[NUM_BOTOES] = {8, 11, 12, 13}; // Pinos dos botões
-bool estadosAnteriores[NUM_BOTOES]; // Estados anteriores dos botões
+Vector<Vector<unsigned long>> lista_botoes; // Vetor de vetores para armazenar horários
+Vector<unsigned long> botoes; // Vetor que contém o número dos pinos
 
 void setup() {
   Serial.begin(9600);
 
   // Inicializa os pinos
-  pinMode(10, OUTPUT);
+  pinMode(10, OUTPUT); 
   pinMode(9, OUTPUT);
 
-  // Configura os pinos como entradas com resistores pull-up
-  for (int i = 0; i < NUM_BOTOES; i++) {
-    pinMode(botoes[i], INPUT_PULLUP);
-    estadosAnteriores[i] = digitalRead(botoes[i]); // Inicializa com o estado atual do botão
-    for (int j = 0; j < MAX_EVENTOS; j++) {
-      lista_botoes[i][j] = 0; // Inicializa a matriz com zeros
-    }
-  }
+  // Adiciona os pinos dos botões no vetor
+  botoes.push_back(8);
+  botoes.push_back(11);
+  botoes.push_back(12);
+  botoes.push_back(13);
 
-  Serial.println("Sistema inicializado. Aguardando interações...");
+  // Configura os pinos como entradas com resistores pull-up
+  for (int i = 0; i < botoes.size(); i++) {
+    pinMode(botoes[i], INPUT_PULLUP);
+    Vector<unsigned long> novoVetor; // Cria um vetor para cada botão
+    lista_botoes.push_back(novoVetor); // Adiciona ao vetor principal
+  }
+}
+
+void sendManchester(int bit) {
+  if (bit == 0) {
+    digitalWrite(10, LOW);
+    delay(100); // Half-bit period
+  } else {
+    digitalWrite(10, HIGH);
+    delay(100); // Half-bit period
+  }
 }
 
 void ler_botao(int pino, int indice) {
   int estadoBotao = digitalRead(pino); // Lê o estado atual do botão
 
   // Detecta quando o botão é pressionado
-  if (estadoBotao == HIGH  && estadosAnteriores[indice] == LOW) {
-    tempoAtual = millis(); // Atualiza o tempo atual
-    Serial.println("Botão " + String(indice) + " pressionado no tempo: " + String(tempoAtual) + " ms");
+  if (estadoBotao == HIGH && estadoAnterior == LOW) {
+    Serial.println("Botão " + String(indice) + " pressionado!");
 
-    // Armazena o horário na matriz se houver espaço disponível
-    if (contadorEventos[indice] < MAX_EVENTOS) {
-      lista_botoes[indice][contadorEventos[indice]] = tempoAtual;
-      contadorEventos[indice]++;
-    } else {
-      Serial.println("Aviso: Limite de eventos atingido para o botão " + String(indice));
+    Serial.print("Tempo: ");
+    Serial.println(tempoAtual);
+
+    // Armazena o horário no vetor correspondente
+    lista_botoes[indice].push_back(tempoAtual);
+    Serial.println("lista_botoes " + String(indice) + " = " + String(lista_botoes[indice].back())); // Acessa o último valor
+
+    // Transmite uma amostra de dados codificados Manchester (exemplo: 1010)
+    int message[] = {1, 0};
+    for (int i = 0; i < sizeof(message) / sizeof(message[0]); i++) {
+      sendManchester(message[i]);
     }
   }
 
   // Atualiza o estado anterior do botão
-  estadosAnteriores[indice] = estadoBotao;
-}
-
-void imprimir_tabela() {
-  Serial.println("\nTabela de Eventos de Botões:");
-  Serial.println("Botão\tInstantes (ms)");
-  bool tabelaVazia = true; // Verifica se algum botão foi pressionado
-
-  for (int i = 0; i < NUM_BOTOES; i++) {
-    Serial.print(" " + String(i) + "\t");
-    if (contadorEventos[i] > 0) {
-      tabelaVazia = false;
-    }
-    for (int j = 0; j < contadorEventos[i]; j++) {
-      Serial.print(String(lista_botoes[i][j]) + " ");
-    }
-    Serial.println();
-  }
-
-  if (tabelaVazia) {
-    Serial.println("Nenhum botão foi pressionado até agora.");
-  }
-  Serial.println("\n--- Fim da Tabela ---\n");
+  estadoAnterior = estadoBotao;
 }
 
 void loop() {
   // Atualiza o tempo atual
-  tempoAtual = millis();
+  tempoAtual = millis();   // Atualiza o tempo com o valor de millis()
 
-  // Verifica se é hora de imprimir a tabela
-  if (tempoAtual - tempoInicio >= intervaloTabela) {
-    imprimir_tabela();
-    tempoInicio = tempoAtual; // Reinicia o contador
-  }
 
-ler_botao(11, 1);
+
+  ler_botao(11, 1);
   ler_botao(12, 2);
   ler_botao(8, 0);
-   ler_botao(13, 3);
-
- // Pequeno atraso para evitar leituras redundantes
+  ler_botao(13,3);
+delay(200);
 }
